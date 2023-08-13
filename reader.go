@@ -1,4 +1,4 @@
-package envconf
+package github.com/flaboy/envconf
 
 import (
 	"encoding/json"
