@@ -1,9 +1,12 @@
 # env-conf-reader
 
 1. Read system-env first.
-1. Parse config file second.
+2. Parse config file second.
+3. Support nested structure with environment key concatenation.
 
-```
+## Basic Usage
+
+```go
 import "github.com/flaboy/envconf"
 
 type config struct {
@@ -22,17 +25,57 @@ type config struct {
 	JsonVar2  []string          `cfg:"EXAMPLE_JSON_CFG2"`
 }
 
-
 var Config *config
 
 func main() {
 	Config = &config{}
 	err := envconf.Load("env.conf", Config)
 }
-
 ```
 
-env.conf
+## Nested Structure Support
+
+```go
+type StorageConfig struct {
+	Type  string `cfg:"TYPE" default:"local"`
+	Local LocalStorage  `cfg:"LOCAL"`
+	S3    S3Storage    `cfg:"S3"`
+}
+
+type LocalStorage struct {
+	BasePath string `cfg:"BASE_PATH" default:"storage"`
+	BaseURL  string `cfg:"BASE_URL" default:"/storage"`
+}
+
+type S3Storage struct {
+	AccessKey string `cfg:"ACCESS_KEY"`
+	SecretKey string `cfg:"SECRET_KEY"`
+	Bucket    string `cfg:"BUCKET"`
+	Region    string `cfg:"REGION"`
+	Endpoint  string `cfg:"ENDPOINT"`
+	PublicURL string `cfg:"PUBLIC_URL"`
+}
+
+type Config struct {
+	Storage StorageConfig `cfg:"STORAGE"`
+}
+```
+
+Environment variables are concatenated with underscore:
+
+```
+STORAGE_TYPE=s3
+STORAGE_S3_ACCESS_KEY=your-access-key
+STORAGE_S3_SECRET_KEY=your-secret-key
+STORAGE_S3_BUCKET=your-bucket
+STORAGE_S3_REGION=your-region
+STORAGE_S3_ENDPOINT=your-endpoint
+STORAGE_S3_PUBLIC_URL=your-public-url
+```
+
+## Configuration Files
+
+### env.conf
 ```
 # comment
 STR_CFG =   str-value
@@ -52,6 +95,9 @@ EXAMPLE_JSON_CFG={"a":"b","c":"d","e":"f"}
 EXAMPLE_JSON_CFG2=["aaa", "bbb", "ccc"]
 ```
 
+## Environment Variables Override
+
+Environment variables take precedence over config file values:
 
 ```
 STR_CFG=3333 ./example
