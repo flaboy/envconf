@@ -2,7 +2,6 @@ package envconf
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"os"
 	"reflect"
@@ -16,8 +15,18 @@ type parser struct {
 	set    map[string]string
 }
 
+func LoadDotEnv(target interface{}, path ...string) error {
+	if len(path) > 0 {
+		return Load(path[0], target)
+	}
+	if _, err := os.Stat(".env"); os.IsNotExist(err) {
+		return Load(".env", target)
+	}
+	return nil
+}
+
 func Load(filename string, target interface{}) error {
-	file, err := ioutil.ReadFile(filename)
+	file, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}
@@ -118,7 +127,7 @@ func (me *parser) setValue(fv reflect.Value, key, s string) {
 			fv.SetBool(b)
 		}
 	case reflect.Float32, reflect.Float64:
-		x, err := strconv.ParseFloat(s, 0)
+		x, err := strconv.ParseFloat(s, 32)
 		if err != nil {
 			log.Printf("config error: %s required float, %s given\n", key, s)
 		} else {
