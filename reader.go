@@ -38,7 +38,7 @@ func Load(filename string, target interface{}) error {
 		p.parseLine(line)
 	}
 
-	p.full()
+	p.full("")
 
 	return nil
 }
@@ -51,8 +51,11 @@ func (me *parser) parseLine(line string) {
 	}
 }
 
-func (me *parser) full() {
-	v := reflect.ValueOf(me.target).Elem()
+func (me *parser) full(prefix string) {
+	v := reflect.ValueOf(me.target)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
 	t := v.Type()
 
 	for i := 0; i < t.NumField(); i += 1 {
@@ -62,13 +65,26 @@ func (me *parser) full() {
 			key = f.Name
 		}
 
-		if s, ok := me.set[key]; strings.ToUpper(f.Name[0:1]) == f.Name[0:1] && ok {
-			fv := v.Field(i)
+		if prefix != "" {
+			key = prefix + "_" + key
+		}
+
+		fv := v.Field(i)
+
+		if fv.Kind() == reflect.Struct {
+			subParser := &parser{
+				target: fv.Addr().Interface(),
+				set:    me.set,
+			}
+			subParser.full(key)
+			continue
+		}
+
+		if s, ok := me.set[key]; ok {
 			me.setValue(fv, key, s)
 		} else {
 			dft := f.Tag.Get("default")
 			if dft != "" {
-				fv := v.Field(i)
 				me.setValue(fv, key, dft)
 			}
 		}
@@ -76,7 +92,6 @@ func (me *parser) full() {
 }
 
 func (me *parser) setValue(fv reflect.Value, key, s string) {
-
 	switch fv.Type().Kind() {
 	case reflect.String:
 		fv.SetString(s)
