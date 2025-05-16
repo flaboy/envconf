@@ -2,6 +2,7 @@ package envconf
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"reflect"
@@ -23,6 +24,46 @@ func LoadDotEnv(target interface{}, path ...string) error {
 		return Load(".env", target)
 	}
 	return nil
+}
+
+func GetExample(target interface{}) (string, error) {
+	v := reflect.ValueOf(target)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return "", fmt.Errorf("target must be a struct pointer")
+	}
+
+	var lines []string
+	t := v.Type()
+
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+
+		// 跳过未导出字段
+		if !f.IsExported() {
+			continue
+		}
+
+		key := f.Tag.Get("cfg")
+		if key == "" {
+			key = f.Name
+		}
+
+		// 获取默认值
+		defaultVal := f.Tag.Get("default")
+
+		// 添加注释
+		comment := f.Tag.Get("comment")
+		if comment != "" {
+			lines = append(lines, "# "+comment)
+		}
+
+		lines = append(lines, fmt.Sprintf("%s=%s", key, defaultVal))
+	}
+
+	return strings.Join(lines, "\n"), nil
 }
 
 func Load(filename string, target interface{}) error {
